@@ -1,9 +1,12 @@
 from hve_codes import Vaccine, State
+import os
 
 # === PARAMETERS ===
 N_PEOPLE = 170_000  # number of individuals in the model (roughly matches the 70+ population in the CPZP data)
 N_DEATHS = 17_000   # number of deaths (2021-2022; roughly matches the deaths in the 70+ population in the CPZP data)
 N_WEEKS = 2 * 52    # years 2021 and 2022
+
+N_RUNS = 500        # number of simulation
 
 DOSE_WEEK_DIST_PARAMS = {
     Vaccine.DOSE1: {"loc": 20, "scale": 3},  # mean, std of normally distributed weeks of dose 1
@@ -27,7 +30,7 @@ P_DEATH = N_DEATHS / N_PEOPLE  # probability of dying sometimes during the simul
 
 # === THE VACCINATION STEP ===
 HVE_DURATION = 26  # How many weeks to look into the past
-HVE_P = 0.5     # Probability that a vaccine dose will NOT be given due to HVE; set to 0 to disable HVE
+HVE_P = 0.5        # Probability that a vaccine dose will NOT be given due to HVE; set to 0 to disable HVE
 
 # === VISUALIZATION ===
 SPLIT_WEEK = 4    # the first 4 weeks after a dose are considered less than SPLIT_WEEK and the rest more than SPLIT_WEEK
@@ -53,6 +56,8 @@ COLORS = [
     (0.95, 0.50, 0.95)
 ]
 
+RESULT_DIR = "result"
+
 # === SANITY CHECKS ===
 for i in Vaccine:
     assert i in DOSE_UPTAKE, f"Missing definition of parameter for vaccine {i.name} in DOSE_UPTAKE"
@@ -69,4 +74,6 @@ assert 0 < FIGURE_PER, "FIGURE_PER must be positive"
 assert 0 < P_DEATH < 1, "P_DEATH must be between 0 and 1"
 assert all(0 <= v <= 1 for v in DOSE_UPTAKE.values()), "All values in DOSE_UPTAKE must be between 0 and 1"
 assert all(0 < v["loc"] < N_WEEKS for v in DOSE_WEEK_DIST_PARAMS.values()), "All locs in DOSE_WEEK_DIST_PARAMS must be lower than N_WEEKS and greater than 0"
-assert all(0 < v["scale"] for v in DOSE_WEEK_DIST_PARAMS.values()), "All scales in DOSE_WEEK_DIST_PARAMS must be greater than 0"
+assert all(0 <= v["scale"] for v in DOSE_WEEK_DIST_PARAMS.values()), "All scales in DOSE_WEEK_DIST_PARAMS must be greater than 0"
+
+os.makedirs(RESULT_DIR, exist_ok=True)
