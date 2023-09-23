@@ -1,3 +1,4 @@
+import pandas as pd
 from tqdm.contrib.concurrent import process_map
 from multiprocessing import freeze_support
 from matplotlib.ticker import FuncFormatter
@@ -51,17 +52,6 @@ def run(iteration=None):
                     else:
                         vaccines[i, v.value] = dose_week
 
-    # Plot sanity check (vaccination)
-    if iteration is None or iteration == 0:
-        for n in range(vaccines.shape[1]):
-            plt.hist(vaccines[:, n])
-
-        plt.ylabel("Count of doses")
-        plt.xlabel("Time [week]")
-        plt.tight_layout()
-
-        plt.savefig(f"{RESULT_DIR}/{HVE_P=}_{HVE_DURATION=}_{N_RUNS=}_dose_hist.svg")
-
     # === CONVERT TO CODES ===
     for i in range(N_PEOPLE):
         # Convert all dose dates
@@ -96,19 +86,21 @@ if __name__ == "__main__":
     freeze_support()
 
     runs = np.array(process_map(run, range(N_RUNS)))
+    runs_mean = np.mean(runs, axis=0)
+    runs_std = np.std(runs, axis=0)
+    runs_label = [s.label.format(SPLIT_WEEK) for s in State]
+
+    filename = f"{HVE_P=}_{HVE_DURATION=}_{N_RUNS=}"
+
+    # === SAVE THE RESULTS ===
+    df = pd.DataFrame(data={"label": runs_label, "mean": runs_mean, "std": runs_std})
+    df.to_csv(os.path.join(RESULT_DIR, f"{filename}.csv"), index=False)
 
     # === PLOT THE RESULT ===
     plt.figure(figsize=(11, 6))
-    plt.barh(
-        y=[s.label.format(SPLIT_WEEK) for s in State],
-        width=np.mean(runs, axis=0),
-        xerr=np.std(runs, axis=0),
-        color=[COLORS[n] for n in range(len(State))],
-        lw=0
-    )
-
+    plt.barh(y=runs_label, width=runs_mean, xerr=runs_std, color=[COLORS[n] for n in range(len(State))], lw=0)
     plt.gca().xaxis.set_major_formatter(FuncFormatter(lambda x, _: f'{x:,.0f}'))
     plt.xlabel(f'Number of deaths per {FIGURE_PER:,.0f} person-years in the category')
     plt.tight_layout()
     plt.subplots_adjust(left=0.17)
-    plt.savefig(f"{RESULT_DIR}/{HVE_P=}_{HVE_DURATION=}_{N_RUNS=}.svg")
+    plt.savefig(os.path.join(RESULT_DIR, f"{filename}.eps"))
