@@ -6,35 +6,35 @@ N_PEOPLE = 170_000  # number of individuals in the model (roughly matches the 70
 N_DEATHS = 17_000   # number of deaths (2021-2022; roughly matches the deaths in the 70+ population in the CPZP data)
 N_WEEKS = 2 * 52    # years 2021 and 2022
 
-N_RUNS = 500        # number of simulation
+N_RUNS = 500        # number of simulations
 
 DOSE_WEEK_DIST_PARAMS = {
-    Vaccine.DOSE1: {"loc": 20, "scale": 3},  # mean, std of normally distributed weeks of dose 1
-    Vaccine.DOSE2: {"loc": 20, "scale": 3},  # mean, std of normally distributed weeks of dose 2
-    Vaccine.DOSE3: {"loc": 20, "scale": 3}   # mean, std of normally distributed weeks óf dose 3
+    Vaccine.DOSE1: {"loc": 20, "scale": 3},  # mean, std of normally distributed week of administration of dose 1
+    Vaccine.DOSE2: {"loc": 20, "scale": 3},  # mean, std of normally distributed weeks between dose 1 and dose 2
+    Vaccine.DOSE3: {"loc": 20, "scale": 3}   # mean, std of normally distributed weeks between dose 2 and dose 3
 }
 
 DOSE_UPTAKE = {
-    Vaccine.DOSE1: 0.82,  # fraction of N_people who took dose1
-    Vaccine.DOSE2: 0.96,  # fraction of dose1 recipients who took dose2
-    Vaccine.DOSE3: 0.82   # fraction od dose2 recipients who took dose3
+    Vaccine.DOSE1: 0.82,  # fraction of N_people who took dose 1
+    Vaccine.DOSE2: 0.96,  # fraction of dose 1 recipients who took dose 2
+    Vaccine.DOSE3: 0.82   # fraction of dose 2 recipients who took dose 3
 }
 
 # If dose[n+1] should be given earlier than "MIN_TIME" after dose[n], it will be given "MIN_TIME" after dose[n]
-MIN_TIME = 4  # there have to be at least 4 weeks beteen consecutive doses
+MIN_TIME = 4  # there have to be at least 4 weeks between consecutive doses
 
 # === THE DEATH STEP ===
-# - We now distribute the deaths independently of the vaccine doses.
+# - We first distribute the deaths
 # - The deaths are simulated BEFORE any vaccines are simulated.
 P_DEATH = N_DEATHS / N_PEOPLE  # probability of dying sometimes during the simulated period
 
 # === THE VACCINATION STEP ===
-HVE_DURATION = 26  # How many weeks to look into the past
-HVE_P = 0.5        # Probability that a vaccine dose will NOT be given due to HVE; set to 0 to disable HVE
+HVE_DURATION = 26  # How many weeks to look into the future to see if the subject will die
+HVE_P = 0.5        # Probability that a vaccine dose will NOT be given due to HVE; set to 0 to switch off HVE
 
 # === VISUALIZATION ===
-SPLIT_WEEK = 4    # the first 4 weeks after a dose are considered less than SPLIT_WEEK and the rest more than SPLIT_WEEK
-FIGURE_PER = 1e5  # per 100 000 person years
+SPLIT_WEEK = 4    # the first 4 weeks after a dose form a distinct vaccination status category
+FIGURE_PER = 1e5  # all-cause mortality computed per 100 000 person years
 COLORS = [
     # Gray (unvaccinated)
     (0.70, 0.70, 0.70),
