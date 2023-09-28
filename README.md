@@ -1,8 +1,12 @@
 # Healthy Vaccine Effect
 
-![Example result](docs/example_result.png)
+## HVE = 0.5, HVE_DURATION = 26, N_RUNS = 500
+![HVE](docs/HVE_P=0.5_HVE_DURATION=26_N_RUNS=500.svg)
 
-# Install
+## HVE = 0, HVE_DURATION = 26, N_RUNS = 500 (sanity check)
+![No HVE](docs/HVE_P=0_HVE_DURATION=26_N_RUNS=500.svg)
+
+# Install (Debian-based Linux)
 
 ## Python
 
