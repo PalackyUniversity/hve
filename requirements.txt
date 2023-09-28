@@ -1,4 +1,5 @@
 seaborn==0.12.2
-numpy==1.25.2
-matplotlib==3.7.1
+numpy==1.26.0
+matplotlib==3.7.3
 tqdm==4.66.1
+pandas==2.1.1
