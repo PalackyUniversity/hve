@@ -1,4 +1,3 @@
-import pandas as pd
 from tqdm.contrib.concurrent import process_map
 from multiprocessing import freeze_support
 from matplotlib.ticker import FuncFormatter
@@ -6,6 +5,7 @@ from matplotlib import pyplot as plt
 from hve_parameters import *
 from hve_codes import State
 import seaborn as sns
+import pandas as pd
 import numpy as np
 import math
 
@@ -17,17 +17,20 @@ def run(iteration=None):
         for _ in range(N_PEOPLE)  # Week of death of each person (NaN if the person does not die)
     ]
 
+    cancelled_vaccines_unreal = 0  # Variable for counting cancelled vaccines due to independent modelling of death
+    cancelled_vaccines_hve = 0  # Variable for counting cancelled vaccines due to effect of HVE
+
     vaccines = np.full((N_PEOPLE, len(Vaccine)), np.nan)  # Allocation for vaccination dates
     population = np.zeros((N_PEOPLE, N_WEEKS), dtype=np.uint8)  # Allocation for internal state (code) of each person
     n_dead = np.zeros((len(State), ))  # Allocation for the number of dead in each category
 
     # === VACCINATION ===
     for v in Vaccine:
-        for i in range(N_PEOPLE):
+        for n in range(N_PEOPLE):
             if np.random.rand() < DOSE_UPTAKE[v]:
                 # Check if all previous doses were administered
                 for j in range(v.value):
-                    if np.isnan(vaccines[i, j]):
+                    if np.isnan(vaccines[n, j]):
                         break
 
                 # Dose will be administered
@@ -37,55 +40,69 @@ def run(iteration=None):
 
                     # Add lower dose week
                     if v != Vaccine.DOSE1:
-                        dose_week += vaccines[i, v.value - 1]
+                        dose_week += vaccines[n, v.value - 1]
 
                     # Cannot vaccinate after death
-                    if dose_week > died[i]:
-                        pass
+                    if dose_week > died[n]:
+                        cancelled_vaccines_unreal += 1
 
                     # HVE kicks in
-                    elif abs(dose_week - died[i]) < HVE_DURATION:
+                    elif abs(dose_week - died[n]) < HVE_DURATION:
                         if np.random.rand() > HVE_P:
-                            vaccines[i, v.value] = dose_week
+                            vaccines[n, v.value] = dose_week
+
+                        else:
+                            cancelled_vaccines_hve += 1
 
                     # Vaccinate
                     else:
-                        vaccines[i, v.value] = dose_week
+                        vaccines[n, v.value] = dose_week
 
     # === CONVERT TO CODES ===
-    for i in range(N_PEOPLE):
+    for n in range(N_PEOPLE):
         # Convert all dose dates
         for v in Vaccine:
-            if not np.isnan(vaccines[i, v.value]):
-                population[i, int(vaccines[i, v.value]):] = State.to_code(vaccine=v, higher=False)
-                population[i, int(vaccines[i, v.value]) + SPLIT_WEEK:] = State.to_code(vaccine=v, higher=True)
+            if not np.isnan(vaccines[n, v.value]):
+                population[n, int(vaccines[n, v.value]):] = State.to_code(vaccine=v, higher=False)
+                population[n, int(vaccines[n, v.value]) + SPLIT_WEEK:] = State.to_code(vaccine=v, higher=True)
 
         # Convert death date
-        if not np.isnan(died[i]):
+        if not np.isnan(died[n]):
             dead_later = np.random.choice([0, 1])   # death coded a week later in 50% (vaccination status is not lost)
-            population[i, (int(died[i]) + dead_later):] = 1
+            population[n, (int(died[n]) + dead_later):] = 1
 
     # === COMPUTE THE NUMBER OF DEAD IN EACH CATEGORY ===
-    for i in range(N_PEOPLE):
-        w = np.argwhere(population[i, :] == 1)  # find all weeks when the person is dead
+    for n in range(N_PEOPLE):
+        w = np.argwhere(population[n, :] == 1)  # find all weeks when the person is dead
         if len(w):  # if there are any
             w = w[0] - 1  # the week of death (ATTENTION: it's minus one, see the section above!)
-            state = population[i, w]  # this is the vaccination status when the person died
+            state = population[n, w]  # this is the vaccination status when the person died
             n_dead[list(map(lambda x: x.value, State)).index(state)] += 1  # increase the correct box by one
 
     # === COMPUTE THE PERSON WEEKS IN EACH CATEGORY ===
-    person_weeks = [np.sum(population.flatten() == s.value) for s in State]  # find all weeks of this state and sum them up
+    person_weeks = [np.sum(population.flatten() == s.value) for s in State]  # find all weeks of this state, sum them up
     person_years = np.array(person_weeks) / (365.25 / 7)
     mortality = n_dead / person_years * FIGURE_PER
 
-    return mortality
+    return mortality, cancelled_vaccines_hve, cancelled_vaccines_unreal
 
 
 if __name__ == "__main__":
     sns.set_theme()
     freeze_support()
 
-    runs = np.array(process_map(run, range(N_RUNS)))
+    # === Run simulations in parallel ===
+    output = process_map(run, range(N_RUNS))
+
+    # Extract statistics
+    count_unreal = list(map(lambda x: x[2], output))
+    count_hve = list(map(lambda x: x[1], output))
+
+    print(f"Count of deleted vaccines because of HVE: {np.mean(count_hve)} ± {np.std(count_hve)}")
+    print(f"Count of deleted vaccines because of death modelling: {np.mean(count_unreal)} ± {np.std(count_unreal)}")
+
+    # Extract mortality
+    runs = list(map(lambda x: x[0], output))
     runs_mean = np.mean(runs, axis=0)
     runs_std = np.std(runs, axis=0)
     runs_label = [s.label.format(SPLIT_WEEK) for s in State]
@@ -104,3 +121,4 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.subplots_adjust(left=0.17)
     plt.savefig(os.path.join(RESULT_DIR, f"{filename}.eps"))
+    plt.savefig(os.path.join(RESULT_DIR, f"{filename}.svg"))
